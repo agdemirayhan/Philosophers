@@ -14,34 +14,59 @@ void	*philosopher_thread(void *arg)
 
 	philo = (t_philo *)arg;
 	params = philo->params;
-	while (1)
+	// Handle the special case where there's only one philosopher
+	if (params->num_philos == 1)
 	{
-		if (params->dead) // Stop if any philosopher has died
-			break ;
-		// Thinking
-		pthread_mutex_lock(&params->print_mutex);
-		printf("%ld %d is thinking\n", current_time_ms() - params->start_time,
-			philo->id);
-		pthread_mutex_unlock(&params->print_mutex);
-		// Try to pick up forks (left and right)
-		pthread_mutex_lock(philo->left_fork);
-		if (params->dead) // Check again after locking
-		{
-			pthread_mutex_unlock(philo->left_fork); // Ensure fork is released
-			break ;
-		}
+		pthread_mutex_lock(philo->left_fork); // The only fork available
 		pthread_mutex_lock(&params->print_mutex);
 		printf("%ld %d has taken a fork\n", current_time_ms()
 			- params->start_time, philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
-		pthread_mutex_lock(philo->right_fork);
-		if (params->dead) // Check again after locking the second fork
+		usleep(params->time_to_die * 1000);
+			// Philosopher dies after time_to_die
+		// Declare philosopher's death
+		pthread_mutex_lock(&params->print_mutex);
+		printf("%ld %d died\n", current_time_ms() - params->start_time,
+			philo->id);
+		pthread_mutex_unlock(&params->print_mutex);
+		pthread_mutex_unlock(philo->left_fork); // Unlock the fork
+		pthread_mutex_lock(&params->print_mutex);
+		params->dead = 1; // Protecting `dead` flag with mutex
+		pthread_mutex_unlock(&params->print_mutex);
+		return (NULL); // Exit the thread
+	}
+	// For more than one philosopher, the usual routine follows
+	while (1)
+	{
+		pthread_mutex_lock(&params->print_mutex); // Protect access to `dead`
+		if (params->dead)                        
+			// Stop if any philosopher has died
 		{
-			pthread_mutex_unlock(philo->right_fork); // Ensure fork is released
-			pthread_mutex_unlock(philo->left_fork);  // Ensure fork is released
+			pthread_mutex_unlock(&params->print_mutex);
 			break ;
 		}
+		pthread_mutex_unlock(&params->print_mutex);
+		// Try to pick up forks (left and right)
+		pthread_mutex_lock(philo->left_fork);
 		pthread_mutex_lock(&params->print_mutex);
+		if (params->dead)
+		{
+			pthread_mutex_unlock(&params->print_mutex);
+			pthread_mutex_unlock(philo->left_fork);
+			break ;
+		}
+		printf("%ld %d has taken a fork\n", current_time_ms()
+			- params->start_time, philo->id);
+		pthread_mutex_unlock(&params->print_mutex);
+		pthread_mutex_lock(philo->right_fork);
+		pthread_mutex_lock(&params->print_mutex);
+		if (params->dead)
+		{
+			pthread_mutex_unlock(&params->print_mutex);
+			pthread_mutex_unlock(philo->right_fork);
+			pthread_mutex_unlock(philo->left_fork);
+			break ;
+		}
 		printf("%ld %d has taken a fork\n", current_time_ms()
 			- params->start_time, philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
@@ -51,28 +76,50 @@ void	*philosopher_thread(void *arg)
 		printf("%ld %d is eating\n", current_time_ms() - params->start_time,
 			philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
-		usleep(params->time_to_eat * 1000);
+		// Break up sleep time to allow dead-checking
+		for (int i = 0; i < params->time_to_eat; i += 100)
+		{
+			pthread_mutex_lock(&params->print_mutex);
+			if (params->dead)
+			{
+				pthread_mutex_unlock(&params->print_mutex);
+				pthread_mutex_unlock(philo->right_fork);
+				pthread_mutex_unlock(philo->left_fork);
+				return (NULL);
+			}
+			pthread_mutex_unlock(&params->print_mutex);
+			usleep(100 * 1000);
+				// Sleep in 100ms intervals to allow dead checking
+		}
 		philo->meals_eaten++;
 		// Put down the forks
 		pthread_mutex_unlock(philo->right_fork);
 		pthread_mutex_unlock(philo->left_fork);
-		// After eating, check again if a philosopher is dead
-		if (params->dead)
-			break ;
-		// Sleeping
 		pthread_mutex_lock(&params->print_mutex);
-		printf("%ld %d is sleeping\n", current_time_ms() - params->start_time,
-			philo->id);
-		pthread_mutex_unlock(&params->print_mutex);
-		usleep(params->time_to_sleep * 1000);
-		// After sleeping, check again if a philosopher is dead
 		if (params->dead)
+		{
+			pthread_mutex_unlock(&params->print_mutex);
 			break ;
-		// Thinking again
+		}
+		pthread_mutex_unlock(&params->print_mutex);
+		// Thinking
 		pthread_mutex_lock(&params->print_mutex);
 		printf("%ld %d is thinking\n", current_time_ms() - params->start_time,
 			philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
+		// Sleeping (with dead-checking during sleep)
+		for (int i = 0; i < params->time_to_sleep; i += 100)
+		{
+			pthread_mutex_lock(&params->print_mutex);
+			if (params->dead)
+			{
+				pthread_mutex_unlock(&params->print_mutex);
+				return (NULL);
+			}
+			pthread_mutex_unlock(&params->print_mutex);
+			usleep(100 * 1000);
+				// Sleep in 100ms intervals to allow dead checking
+		}
 	}
 	return (NULL);
 }
@@ -87,23 +134,27 @@ void	*monitor_thread(void *arg)
 	{
 		for (int i = 0; i < params->num_philos; i++)
 		{
+			pthread_mutex_lock(&params->print_mutex);
 			time_since_last_meal = current_time_ms()
 				- params->philosophers[i].last_meal_time;
 			if (time_since_last_meal > params->time_to_die)
 			{
-				pthread_mutex_lock(&params->print_mutex);
 				printf("%ld %d died\n", current_time_ms() - params->start_time,
 					params->philosophers[i].id);
-				pthread_mutex_unlock(&params->print_mutex);
-				// Set the dead flag and stop the simulation
 				params->dead = 1;
+				pthread_mutex_unlock(&params->print_mutex);
 				return (NULL);
 			}
+			pthread_mutex_unlock(&params->print_mutex);
 		}
 		usleep(1000); // Check every millisecond
-		// If a philosopher has died, stop monitoring
+		pthread_mutex_lock(&params->print_mutex);
 		if (params->dead)
+		{
+			pthread_mutex_unlock(&params->print_mutex);
 			break ;
+		}
+		pthread_mutex_unlock(&params->print_mutex);
 	}
 	return (NULL);
 }
