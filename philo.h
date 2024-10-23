@@ -21,15 +21,16 @@ typedef struct s_philo
 typedef struct s_params
 {
 	int				num_philos;
-	int				time_to_die;
-	int				time_to_eat;
-	int				time_to_sleep;
-	int				meals_required;
-	pthread_mutex_t	*forks;
+	long			time_to_die;
+	long			time_to_eat;
+	long			time_to_sleep;
+	int meals_required; // Number of meals each philosopher must eat
+	int philos_done;    // Number of philosophers who have completed eating
+	int dead;           // Flag to signal if a philosopher has died
 	pthread_mutex_t	print_mutex;
+	pthread_mutex_t	*forks;
 	t_philo			*philosophers;
 	long			start_time;
-	int dead; // <-- Flag to indicate if any philosopher is dead
 }					t_params;
 
 long				current_time_ms(void);

@@ -20,27 +20,25 @@ void	*philosopher_thread(void *arg)
 		pthread_mutex_lock(philo->left_fork); // The only fork available
 		pthread_mutex_lock(&params->print_mutex);
 		printf("%ld %d has taken a fork\n", current_time_ms()
-			- params->start_time, philo->id);
+				- params->start_time, philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
 		usleep(params->time_to_die * 1000);
-			// Philosopher dies after time_to_die
+		// Philosopher dies after time_to_die
 		// Declare philosopher's death
 		pthread_mutex_lock(&params->print_mutex);
 		printf("%ld %d died\n", current_time_ms() - params->start_time,
-			philo->id);
+				philo->id);
+		params->dead = 1;
 		pthread_mutex_unlock(&params->print_mutex);
 		pthread_mutex_unlock(philo->left_fork); // Unlock the fork
-		pthread_mutex_lock(&params->print_mutex);
-		params->dead = 1; // Protecting `dead` flag with mutex
-		pthread_mutex_unlock(&params->print_mutex);
-		return (NULL); // Exit the thread
+		return (NULL);                          // Exit the thread
 	}
-	// For more than one philosopher, the usual routine follows
+	// Normal case for more than one philosopher
 	while (1)
 	{
-		pthread_mutex_lock(&params->print_mutex); // Protect access to `dead`
-		if (params->dead)                        
-			// Stop if any philosopher has died
+		// Check if the simulation has ended (either a philosopher died or all have eaten enough)
+		pthread_mutex_lock(&params->print_mutex);
+		if (params->dead)
 		{
 			pthread_mutex_unlock(&params->print_mutex);
 			break ;
@@ -56,7 +54,7 @@ void	*philosopher_thread(void *arg)
 			break ;
 		}
 		printf("%ld %d has taken a fork\n", current_time_ms()
-			- params->start_time, philo->id);
+				- params->start_time, philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
 		pthread_mutex_lock(philo->right_fork);
 		pthread_mutex_lock(&params->print_mutex);
@@ -67,16 +65,16 @@ void	*philosopher_thread(void *arg)
 			pthread_mutex_unlock(philo->left_fork);
 			break ;
 		}
-		printf("%ld %d has taken a fork\n", current_time_ms()
-			- params->start_time, philo->id);
+		printf("%ld %d has taken the other fork\n", current_time_ms()
+				- params->start_time, philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
 		// Eating
 		philo->last_meal_time = current_time_ms();
 		pthread_mutex_lock(&params->print_mutex);
 		printf("%ld %d is eating\n", current_time_ms() - params->start_time,
-			philo->id);
+				philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
-		// Break up sleep time to allow dead-checking
+		// Simulate eating time with periodic checks for death or completion
 		for (int i = 0; i < params->time_to_eat; i += 100)
 		{
 			pthread_mutex_lock(&params->print_mutex);
@@ -89,23 +87,29 @@ void	*philosopher_thread(void *arg)
 			}
 			pthread_mutex_unlock(&params->print_mutex);
 			usleep(100 * 1000);
-				// Sleep in 100ms intervals to allow dead checking
 		}
-		philo->meals_eaten++;
+			philo->meals_eaten++;
+		if (params->meals_required != -1
+			&& philo->meals_eaten >= params->meals_required)
+		{
+			pthread_mutex_lock(&params->print_mutex);
+			printf("%ld %d has finished eating %d times.\n", current_time_ms()
+					- params->start_time, philo->id, philo->meals_eaten);
+			// Increment the counter for completed philosophers
+			params->philos_done++;
+			pthread_mutex_unlock(&params->print_mutex);
+			// Release forks before exiting
+			pthread_mutex_unlock(philo->right_fork);
+			pthread_mutex_unlock(philo->left_fork);
+			break ;
+		}
 		// Put down the forks
 		pthread_mutex_unlock(philo->right_fork);
 		pthread_mutex_unlock(philo->left_fork);
-		pthread_mutex_lock(&params->print_mutex);
-		if (params->dead)
-		{
-			pthread_mutex_unlock(&params->print_mutex);
-			break ;
-		}
-		pthread_mutex_unlock(&params->print_mutex);
 		// Thinking
 		pthread_mutex_lock(&params->print_mutex);
 		printf("%ld %d is thinking\n", current_time_ms() - params->start_time,
-			philo->id);
+				philo->id);
 		pthread_mutex_unlock(&params->print_mutex);
 		// Sleeping (with dead-checking during sleep)
 		for (int i = 0; i < params->time_to_sleep; i += 100)
@@ -118,7 +122,6 @@ void	*philosopher_thread(void *arg)
 			}
 			pthread_mutex_unlock(&params->print_mutex);
 			usleep(100 * 1000);
-				// Sleep in 100ms intervals to allow dead checking
 		}
 	}
 	return (NULL);
@@ -132,6 +135,17 @@ void	*monitor_thread(void *arg)
 	params = (t_params *)arg;
 	while (1)
 	{
+		pthread_mutex_lock(&params->print_mutex);
+		// Check if all philosophers have finished eating the required number of meals
+		if (params->philos_done == params->num_philos)
+		{
+			printf("All philosophers have finished eating. Stopping simulation.\n");
+			params->dead = 1; // Signal to stop the simulation
+			pthread_mutex_unlock(&params->print_mutex);
+			return (NULL);
+		}
+		pthread_mutex_unlock(&params->print_mutex);
+		// Check if any philosopher has died
 		for (int i = 0; i < params->num_philos; i++)
 		{
 			pthread_mutex_lock(&params->print_mutex);
@@ -140,7 +154,7 @@ void	*monitor_thread(void *arg)
 			if (time_since_last_meal > params->time_to_die)
 			{
 				printf("%ld %d died\n", current_time_ms() - params->start_time,
-					params->philosophers[i].id);
+						params->philosophers[i].id);
 				params->dead = 1;
 				pthread_mutex_unlock(&params->print_mutex);
 				return (NULL);
@@ -148,13 +162,6 @@ void	*monitor_thread(void *arg)
 			pthread_mutex_unlock(&params->print_mutex);
 		}
 		usleep(1000); // Check every millisecond
-		pthread_mutex_lock(&params->print_mutex);
-		if (params->dead)
-		{
-			pthread_mutex_unlock(&params->print_mutex);
-			break ;
-		}
-		pthread_mutex_unlock(&params->print_mutex);
 	}
 	return (NULL);
 }
@@ -216,7 +223,7 @@ void	start_simulation(t_params *params)
 	// Create philosopher threads
 	for (int i = 0; i < params->num_philos; i++)
 		pthread_create(&params->philosophers[i].thread, NULL,
-			philosopher_thread, &params->philosophers[i]);
+				philosopher_thread, &params->philosophers[i]);
 	// Start the monitor thread
 	pthread_create(&monitor, NULL, monitor_thread, params);
 	// Wait for all philosopher threads to finish
