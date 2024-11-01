@@ -15,151 +15,111 @@ void	*philosopher_thread(void *arg)
 	philo = (t_philo *)arg;
 	params = philo->params;
 	// Handle the special case where there's only one philosopher
-	if (params->num_philos == 1)
+	if (philo->num_of_philos == 1)
 	{
-		pthread_mutex_lock(philo->left_fork); // The only fork available
-		pthread_mutex_lock(&params->print_mutex);
+		pthread_mutex_lock(philo->left_fork);
+		pthread_mutex_lock(philo->write_lock);
 		printf("%ld %d has taken a fork\n", current_time_ms()
-				- params->start_time, philo->id);
-		pthread_mutex_unlock(&params->print_mutex);
-		usleep(params->time_to_die * 1000);
-		// Philosopher dies after time_to_die
-		// Declare philosopher's death
-		pthread_mutex_lock(&params->print_mutex);
-		printf("%ld %d died\n", current_time_ms() - params->start_time,
-				philo->id);
-		params->dead = 1;
-		pthread_mutex_unlock(&params->print_mutex);
-		pthread_mutex_unlock(philo->left_fork); // Unlock the fork
-		return (NULL);                          // Exit the thread
+			- philo->start_time, philo->id);
+		pthread_mutex_unlock(philo->write_lock);
+		usleep(philo->time_to_die * 1000);
+		pthread_mutex_lock(philo->write_lock);
+		printf("%ld %d died\n", current_time_ms() - philo->start_time,
+			philo->id);
+		params->dead_flag = 1;
+		pthread_mutex_unlock(philo->write_lock);
+		pthread_mutex_unlock(philo->left_fork);
+		return (NULL);
 	}
 	// Normal case for more than one philosopher
 	while (1)
 	{
-		// Check if the simulation has ended (either a philosopher died or all have eaten enough)
-		pthread_mutex_lock(&params->print_mutex);
-		if (params->dead)
+		// Check if the simulation has ended
+		pthread_mutex_lock(philo->dead_lock);
+		if (params->dead_flag)
 		{
-			pthread_mutex_unlock(&params->print_mutex);
+			pthread_mutex_unlock(philo->dead_lock);
 			break ;
 		}
-		pthread_mutex_unlock(&params->print_mutex);
-		// Try to pick up forks (left and right)
+		pthread_mutex_unlock(philo->dead_lock);
+		// Try to pick up forks
 		pthread_mutex_lock(philo->left_fork);
-		pthread_mutex_lock(&params->print_mutex);
-		if (params->dead)
-		{
-			pthread_mutex_unlock(&params->print_mutex);
-			pthread_mutex_unlock(philo->left_fork);
-			break ;
-		}
+		pthread_mutex_lock(philo->write_lock);
 		printf("%ld %d has taken a fork\n", current_time_ms()
-				- params->start_time, philo->id);
-		pthread_mutex_unlock(&params->print_mutex);
+			- philo->start_time, philo->id);
+		pthread_mutex_unlock(philo->write_lock);
 		pthread_mutex_lock(philo->right_fork);
-		pthread_mutex_lock(&params->print_mutex);
-		if (params->dead)
-		{
-			pthread_mutex_unlock(&params->print_mutex);
-			pthread_mutex_unlock(philo->right_fork);
-			pthread_mutex_unlock(philo->left_fork);
-			break ;
-		}
-		printf("%ld %d has taken the other fork\n", current_time_ms()
-				- params->start_time, philo->id);
-		pthread_mutex_unlock(&params->print_mutex);
+		pthread_mutex_lock(philo->write_lock);
+		printf("%ld %d has taken a fork\n", current_time_ms()
+			- philo->start_time, philo->id);
+		pthread_mutex_unlock(philo->write_lock);
 		// Eating
-		philo->last_meal_time = current_time_ms();
-		pthread_mutex_lock(&params->print_mutex);
-		printf("%ld %d is eating\n", current_time_ms() - params->start_time,
-				philo->id);
-		pthread_mutex_unlock(&params->print_mutex);
-		// Simulate eating time with periodic checks for death or completion
-		for (int i = 0; i < params->time_to_eat; i += 100)
-		{
-			pthread_mutex_lock(&params->print_mutex);
-			if (params->dead)
-			{
-				pthread_mutex_unlock(&params->print_mutex);
-				pthread_mutex_unlock(philo->right_fork);
-				pthread_mutex_unlock(philo->left_fork);
-				return (NULL);
-			}
-			pthread_mutex_unlock(&params->print_mutex);
-			usleep(100 * 1000);
-		}
-			philo->meals_eaten++;
-		if (params->meals_required != -1
-			&& philo->meals_eaten >= params->meals_required)
-		{
-			pthread_mutex_lock(&params->print_mutex);
-			printf("%ld %d has finished eating %d times.\n", current_time_ms()
-					- params->start_time, philo->id, philo->meals_eaten);
-			// Increment the counter for completed philosophers
-			params->philos_done++;
-			pthread_mutex_unlock(&params->print_mutex);
-			// Release forks before exiting
-			pthread_mutex_unlock(philo->right_fork);
-			pthread_mutex_unlock(philo->left_fork);
-			break ;
-		}
-		// Put down the forks
+		pthread_mutex_lock(philo->meal_lock);
+		philo->eating = 1;
+		philo->last_meal = current_time_ms();
+		pthread_mutex_unlock(philo->meal_lock);
+		pthread_mutex_lock(philo->write_lock);
+		printf("%ld %d is eating\n", current_time_ms() - philo->start_time,
+			philo->id);
+		pthread_mutex_unlock(philo->write_lock);
+		usleep(philo->time_to_eat * 1000);
+		philo->meals_eaten++;
+		philo->eating = 0;
 		pthread_mutex_unlock(philo->right_fork);
 		pthread_mutex_unlock(philo->left_fork);
+		// Check if the philosopher has eaten enough times
+		if (philo->num_times_to_eat != -1
+			&& philo->meals_eaten >= philo->num_times_to_eat)
+			break ;
 		// Thinking
-		pthread_mutex_lock(&params->print_mutex);
-		printf("%ld %d is thinking\n", current_time_ms() - params->start_time,
-				philo->id);
-		pthread_mutex_unlock(&params->print_mutex);
-		// Sleeping (with dead-checking during sleep)
-		for (int i = 0; i < params->time_to_sleep; i += 100)
-		{
-			pthread_mutex_lock(&params->print_mutex);
-			if (params->dead)
-			{
-				pthread_mutex_unlock(&params->print_mutex);
-				return (NULL);
-			}
-			pthread_mutex_unlock(&params->print_mutex);
-			usleep(100 * 1000);
-		}
+		pthread_mutex_lock(philo->write_lock);
+		printf("%ld %d is thinking\n", current_time_ms() - philo->start_time,
+			philo->id);
+		pthread_mutex_unlock(philo->write_lock);
+		usleep(philo->time_to_sleep * 1000);
 	}
 	return (NULL);
 }
-
 void	*monitor_thread(void *arg)
 {
 	t_params	*params;
-	long		time_since_last_meal;
 
 	params = (t_params *)arg;
+	size_t time_since_last_meal; // Declare as size_t to match time_to_die
 	while (1)
 	{
-		pthread_mutex_lock(&params->print_mutex);
 		// Check if all philosophers have finished eating the required number of meals
-		if (params->philos_done == params->num_philos)
+		pthread_mutex_lock(&params->meal_lock);
+		if (params->philos_done == params->philos[0].num_of_philos)
 		{
+			pthread_mutex_lock(&params->write_lock);
 			printf("All philosophers have finished eating. Stopping simulation.\n");
-			params->dead = 1; // Signal to stop the simulation
-			pthread_mutex_unlock(&params->print_mutex);
+			pthread_mutex_unlock(&params->write_lock);
+			pthread_mutex_lock(&params->dead_lock);
+			params->dead_flag = 1; // Signal to stop the simulation
+			pthread_mutex_unlock(&params->dead_lock);
+			pthread_mutex_unlock(&params->meal_lock);
 			return (NULL);
 		}
-		pthread_mutex_unlock(&params->print_mutex);
+		pthread_mutex_unlock(&params->meal_lock);
 		// Check if any philosopher has died
-		for (int i = 0; i < params->num_philos; i++)
+		for (int i = 0; i < params->philos[0].num_of_philos; i++)
 		{
-			pthread_mutex_lock(&params->print_mutex);
+			pthread_mutex_lock(&params->meal_lock);
 			time_since_last_meal = current_time_ms()
-				- params->philosophers[i].last_meal_time;
-			if (time_since_last_meal > params->time_to_die)
+				- params->philos[i].last_meal;
+			pthread_mutex_unlock(&params->meal_lock);
+			if (time_since_last_meal > params->philos[i].time_to_die)
 			{
-				printf("%ld %d died\n", current_time_ms() - params->start_time,
-						params->philosophers[i].id);
-				params->dead = 1;
-				pthread_mutex_unlock(&params->print_mutex);
+				pthread_mutex_lock(&params->write_lock);
+				printf("%ld %d died\n", current_time_ms()
+					- params->philos[i].start_time, params->philos[i].id);
+				pthread_mutex_unlock(&params->write_lock);
+				pthread_mutex_lock(&params->dead_lock);
+				params->dead_flag = 1; // Signal to stop the simulation
+				pthread_mutex_unlock(&params->dead_lock);
 				return (NULL);
 			}
-			pthread_mutex_unlock(&params->print_mutex);
 		}
 		usleep(1000); // Check every millisecond
 	}
@@ -168,67 +128,93 @@ void	*monitor_thread(void *arg)
 
 int	initialize(t_params *params, int argc, char **argv)
 {
-	// is_int logic must come here
+	int				num_of_philos;
+	size_t			time_to_die;
+	size_t			time_to_eat;
+	size_t			time_to_sleep;
+	int				num_times_to_eat;
+	pthread_mutex_t	*forks;
+
 	if (argc < 5 || argc > 6)
 	{
 		printf("Usage: ./philo number_of_philosophers time_to_die time_to_eat time_to_sleep [number_of_times_each_philosopher_must_eat]\n");
 		return (0);
 	}
-	params->num_philos = atoi(argv[1]);
-	params->time_to_die = atoi(argv[2]);
-	params->time_to_eat = atoi(argv[3]);
-	params->time_to_sleep = atoi(argv[4]);
-	if (argc == 6)
-		params->meals_required = atoi(argv[5]);
-	else
-		params->meals_required = -1;
-	// Initialize forks (mutexes)
-	params->forks = malloc(sizeof(pthread_mutex_t) * params->num_philos);
-	for (int i = 0; i < params->num_philos; i++)
-		pthread_mutex_init(&params->forks[i], NULL);
-	// Initialize philosophers
-	params->philosophers = malloc(sizeof(t_philo) * params->num_philos);
-	for (int i = 0; i < params->num_philos; i++)
+	// Parse arguments
+	num_of_philos = atoi(argv[1]);
+	time_to_die = (size_t)atoi(argv[2]);
+	time_to_eat = (size_t)atoi(argv[3]);
+	time_to_sleep = (size_t)atoi(argv[4]);
+	num_times_to_eat = (argc == 6) ? atoi(argv[5]) : -1;
+	// Initialize params
+	params->dead_flag = 0;
+	pthread_mutex_init(&params->dead_lock, NULL);
+	pthread_mutex_init(&params->meal_lock, NULL);
+	pthread_mutex_init(&params->write_lock, NULL);
+	// Allocate memory for philosophers and fork mutexes
+	params->philos = malloc(sizeof(t_philo) * num_of_philos);
+	if (!params->philos)
+		return (0);
+	forks = malloc(sizeof(pthread_mutex_t) * num_of_philos);
+	if (!forks)
 	{
-		params->philosophers[i].id = i + 1;
-		params->philosophers[i].left_fork = &params->forks[i];
-		params->philosophers[i].right_fork = &params->forks[(i + 1)
-			% params->num_philos];
-		params->philosophers[i].meals_eaten = 0;
-		params->philosophers[i].last_meal_time = current_time_ms();
-		params->philosophers[i].params = params;
+		free(params->philos);
+		return (0);
 	}
-	// Initialize print mutex
-	pthread_mutex_init(&params->print_mutex, NULL);
-	// <-- This is the correct initialization
+	// Initialize fork mutexes
+	for (int i = 0; i < num_of_philos; i++)
+		pthread_mutex_init(&forks[i], NULL);
+	// Initialize each philosopher
+	for (int i = 0; i < num_of_philos; i++)
+	{
+		params->philos[i].id = i + 1;
+		params->philos[i].eating = 0;
+		params->philos[i].meals_eaten = 0;
+		params->philos[i].last_meal = current_time_ms();
+		params->philos[i].time_to_die = time_to_die;
+		params->philos[i].time_to_eat = time_to_eat;
+		params->philos[i].time_to_sleep = time_to_sleep;
+		params->philos[i].start_time = current_time_ms();
+		params->philos[i].num_of_philos = num_of_philos;
+		params->philos[i].num_times_to_eat = num_times_to_eat;
+		params->philos[i].left_fork = &forks[i];
+		params->philos[i].right_fork = &forks[(i + 1) % num_of_philos];
+		params->philos[i].write_lock = &params->write_lock;
+		params->philos[i].dead_lock = &params->dead_lock;
+		params->philos[i].meal_lock = &params->meal_lock;
+		params->philos[i].params = params;
+	}
 	return (1);
 }
 
 void	cleanup(t_params *params)
 {
-	for (int i = 0; i < params->num_philos; i++)
-		pthread_mutex_destroy(&params->forks[i]);
-	// Destroy the print mutex
-	pthread_mutex_destroy(&params->print_mutex); // <-- Destroy the print mutex
-	free(params->forks);
-	free(params->philosophers);
+	// Destroy fork mutexes
+	for (int i = 0; i < params->philos[0].num_of_philos; i++)
+		pthread_mutex_destroy(params->philos[i].left_fork);
+	// Destroy other mutexes
+	pthread_mutex_destroy(&params->write_lock);
+	pthread_mutex_destroy(&params->dead_lock);
+	pthread_mutex_destroy(&params->meal_lock);
+	// Free allocated memory
+	free(params->philos[0].left_fork); // Free the forks
+	free(params->philos);              // Free the philosophers
 }
 
 void	start_simulation(t_params *params)
 {
 	pthread_t	monitor;
 
-	params->start_time = current_time_ms();
-	params->dead = 0; // Initialize the dead flag to 0 (no one is dead)
+	params->philos[0].start_time = current_time_ms();
 	// Create philosopher threads
-	for (int i = 0; i < params->num_philos; i++)
-		pthread_create(&params->philosophers[i].thread, NULL,
-				philosopher_thread, &params->philosophers[i]);
+	for (int i = 0; i < params->philos[0].num_of_philos; i++)
+		pthread_create(&params->philos[i].thread, NULL, philosopher_thread,
+			&params->philos[i]);
 	// Start the monitor thread
 	pthread_create(&monitor, NULL, monitor_thread, params);
 	// Wait for all philosopher threads to finish
-	for (int i = 0; i < params->num_philos; i++)
-		pthread_join(params->philosophers[i].thread, NULL);
+	for (int i = 0; i < params->philos[0].num_of_philos; i++)
+		pthread_join(params->philos[i].thread, NULL);
 	// Wait for the monitor thread to finish
 	pthread_join(monitor, NULL);
 }

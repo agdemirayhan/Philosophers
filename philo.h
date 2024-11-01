@@ -11,26 +11,31 @@ typedef struct s_philo
 {
 	int				id;
 	pthread_t		thread;
+	int				eating;
 	pthread_mutex_t	*left_fork;
 	pthread_mutex_t	*right_fork;
-	long			last_meal_time;
 	int				meals_eaten;
+	size_t			last_meal;
+	size_t			time_to_die;
+	size_t			time_to_eat;
+	size_t			time_to_sleep;
+	size_t			start_time;
+	int				num_of_philos;
+	int				num_times_to_eat;
+	pthread_mutex_t	*write_lock;
+	pthread_mutex_t	*dead_lock;
+	pthread_mutex_t	*meal_lock;
 	struct s_params	*params;
 }					t_philo;
 
 typedef struct s_params
 {
-	int				num_philos;
-	long			time_to_die;
-	long			time_to_eat;
-	long			time_to_sleep;
-	int meals_required; // Number of meals each philosopher must eat
-	int philos_done;    // Number of philosophers who have completed eating
-	int dead;           // Flag to signal if a philosopher has died
-	pthread_mutex_t	print_mutex;
-	pthread_mutex_t	*forks;
-	t_philo			*philosophers;
-	long			start_time;
+	int				dead_flag;
+	pthread_mutex_t	dead_lock;
+	pthread_mutex_t	meal_lock;
+	pthread_mutex_t	write_lock;
+	int				philos_done;
+	t_philo			*philos;
 }					t_params;
 
 long				current_time_ms(void);
