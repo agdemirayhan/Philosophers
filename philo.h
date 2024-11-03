@@ -22,6 +22,7 @@ typedef struct s_philo
 	size_t			start_time;
 	int				num_of_philos;
 	int				num_times_to_eat;
+	int				*dead;
 	pthread_mutex_t	*write_lock;
 	pthread_mutex_t	*dead_lock;
 	pthread_mutex_t	*meal_lock;
