@@ -10,11 +10,12 @@
 # define WRONG_INPUT 1
 # define MALLOC_ERROR 2
 
-# define TAKE_FORKS "has taken a fork"
+# define FORKS "has taken a fork"
 # define THINK "is thinking"
 # define SLEEP "is sleeping"
 # define EAT "is eating"
 # define DIED "died"
+
 
 typedef struct s_philo
 {
