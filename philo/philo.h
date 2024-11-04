@@ -16,6 +16,8 @@
 # define EAT "is eating"
 # define DIED "died"
 
+// Forward declaration of t_data
+struct s_data;
 
 typedef struct s_philo
 {
@@ -24,6 +26,7 @@ typedef struct s_philo
 	int				count_meal;
 	size_t			last_time_eat;
 	pthread_mutex_t	mutex_fork;
+	struct s_data *data; // Use the forward declaration for the pointer
 }					t_philo;
 
 typedef struct s_data
@@ -35,6 +38,7 @@ typedef struct s_data
 	int				is_finish;
 	int				index;
 	int				num_of_philos;
+	int				finished_philos;
 	size_t			start_time;
 	pthread_mutex_t	mutex_print;
 	pthread_mutex_t	mutex_start;
@@ -48,7 +52,7 @@ typedef struct s_data
 }					t_data;
 
 int					check_input(int argc, char **argv);
-long	ft_atoi(const char *str);
+long				ft_atoi(const char *str);
 // long				current_time_ms(void);
 // void				*philosopher_thread(void *arg);
 // int					initialize(t_params *params, int argc, char **argv);

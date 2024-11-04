@@ -56,6 +56,8 @@ void	print_handler(t_data *data, int type, int i)
 			printf("%zu %d %s\n", time, data->philos[i].id, SLEEP);
 		else if (type == 2)
 			printf("%zu %d %s\n", time, data->philos[i].id, THINK);
+		else if (type == 3)
+			printf("%zu %d %s\n", time, data->philos[i].id, DIED);
 		pthread_mutex_unlock(&data->mutex_print);
 	}
 }
@@ -103,53 +105,147 @@ void	initialize(t_data *data, char **argv)
 	}
 }
 
+#include <pthread.h>
+#include <stdio.h>
+#include <unistd.h> // For usleep
+
+int	routine_loop(t_data *data, int i, int next)
+{
+	// Check if the simulation should stop
+	pthread_mutex_lock(&data->mutex_isfinish);
+	if (data->is_finish)
+	{
+		pthread_mutex_unlock(&data->mutex_isfinish);
+		return (0);
+	}
+	pthread_mutex_unlock(&data->mutex_isfinish);
+	// Take forks and eat
+	pthread_mutex_lock(&data->philos[i].mutex_fork);
+	pthread_mutex_lock(&data->philos[next].mutex_fork);
+	print_handler(data, 0, i);
+	ft_usleep(data->time_to_eat); // Simulate eating
+	// Decrement the count of meals and check if this philosopher is done
+	pthread_mutex_lock(&data->mutex_meal);
+	if (data->philos[i].count_meal > 0)
+	{
+		data->philos[i].count_meal--;
+		if (data->philos[i].count_meal == 0)
+			data->finished_philos++;
+	}
+	pthread_mutex_unlock(&data->mutex_meal);
+	// Put down forks
+	pthread_mutex_unlock(&data->philos[next].mutex_fork);
+	pthread_mutex_unlock(&data->philos[i].mutex_fork);
+	// Sleep
+	print_handler(data, 1, i);
+	ft_usleep(data->time_to_sleep); // Simulate sleeping
+	// Think
+	print_handler(data, 2, i);
+	// Check if the simulation should stop again
+	pthread_mutex_lock(&data->mutex_isfinish);
+	if (data->is_finish)
+	{
+		pthread_mutex_unlock(&data->mutex_isfinish);
+		return (0);
+	}
+	pthread_mutex_unlock(&data->mutex_isfinish);
+	return (1); // Continue the routine
+}
+
 void	*philo_routine(void *args)
 {
 	t_data	*data;
 	int		i;
-	int next;
 
-	i = 0;
-	data = (t_data *)args;
-	pthread_mutex_lock(&data->mutex_index);
-	while (i < data->index)
-		(i)++;
-	if (!data->philos[i + 1].id)
-		next = 0;
-	else
-		next = i + 1;
-	data->index++;
-	pthread_mutex_unlock(&data->mutex_index);
-	pthread_mutex_lock(&data->mutex_start);
-	pthread_mutex_unlock(&data->mutex_start);
-	if (data->num_of_philos != 1 && data->philos[i].id % 2 == 1)
+	t_philo *philo = (t_philo *)args; // Correctly cast args to t_philo
+	data = philo->data;
+	// Access the shared data structure
+	i = philo->id - 1;
+	// Set i based on the philosopher's id
+	int next = (i + 1) % data->num_of_philos; // Calculate the next philosopher
+	// Stagger start for philosophers with odd IDs
+	if (data->num_of_philos != 1 && (i + 1) % 2 == 1)
 	{
-		print_handler(data, 2, i);
-		ft_usleep(data->time_to_eat * 99 / 100);
+		print_handler(data, 2, i);    // Thinking message
+		ft_usleep(data->time_to_eat); // Stagger by sleeping
 	}
+	// Initialize last time eat
 	pthread_mutex_lock(&data->mutex_last_time);
-	data->philos[i].last_time_eat = get_current_time();
+	philo->last_time_eat = get_current_time();
 	pthread_mutex_unlock(&data->mutex_last_time);
-	// while (1)
-	// 	if (!set_routine(data, i, next))
-	// 		return (NULL);
+	// Main loop for the philosopher routine
+	while (1)
+	{
+		if (!routine_loop(data, i, next))
+			return (NULL); // Exit if the routine signals to stop
+	}
 	return (NULL);
 }
 
+void	*monitor_thread(void *args)
+{
+	t_data	*data;
+	int		i;
+	size_t	current_time;
+
+	data = (t_data *)args;
+	while (1)
+	{
+		// Check if all philosophers have finished eating
+		pthread_mutex_lock(&data->mutex_meal);
+		if (data->finished_philos == data->num_of_philos)
+		{
+			pthread_mutex_unlock(&data->mutex_meal);
+			pthread_mutex_lock(&data->mutex_isfinish);
+			data->is_finish = 1;
+			pthread_mutex_unlock(&data->mutex_isfinish);
+			break ;
+		}
+		pthread_mutex_unlock(&data->mutex_meal);
+		// Check if any philosopher has died
+		i = 0;
+		while (i < data->num_of_philos)
+		{
+			printf("\nPhilosopher %d:\n", data->philos[i].id);
+			printf("  Current Time: %ld ms\n", current_time);
+			printf("  Last Time Eat: %ld ms\n", data->philos[i].last_time_eat);
+			printf("  Die checker: %zu ms\n", current_time
+				- data->philos[i].last_time_eat);
+			pthread_mutex_lock(&data->mutex_last_time);
+			current_time = get_current_time();
+			if (current_time
+				- data->philos[i].last_time_eat > (size_t)data->time_to_die)
+			{
+				print_handler(data, 3, i); // Use type 3 for "died" message
+				pthread_mutex_lock(&data->mutex_isfinish);
+				data->is_finish = 1;
+				pthread_mutex_unlock(&data->mutex_isfinish);
+				pthread_mutex_unlock(&data->mutex_last_time);
+				return (NULL); // Exit the monitor thread
+			}
+			pthread_mutex_unlock(&data->mutex_last_time);
+			i++;
+		}
+		ft_usleep(199); // Sleep for a short time to avoid busy-waiting
+	}
+	return (NULL);
+}
 void	start_simulation(t_data *data)
 {
 	int	i;
 
 	i = 0;
-	pthread_mutex_lock(&data->mutex_start);
-	while (data->num_of_philos > i)
+	data->start_time = get_current_time();
+	while (i < data->num_of_philos)
 	{
+		data->philos[i].data = data;
+		// Assign the shared data to each philosopher
 		pthread_create(&data->philos[i].thread, NULL, philo_routine,
-			(void *)data);
+			(void *)&data->philos[i]);
 		i++;
 	}
-	data->start_time = get_current_time();
-	pthread_mutex_unlock(&data->mutex_start);
+	// Create the monitor thread
+	pthread_create(&data->thread, NULL, monitor_thread, (void *)data);
 }
 
 #include <stdio.h>
@@ -177,6 +273,7 @@ void	print_data(t_data *data, char **argv)
 int	main(int argc, char **argv)
 {
 	t_data	*data;
+	int		i;
 
 	if (check_input(argc, argv) != 0)
 	{
@@ -187,89 +284,16 @@ int	main(int argc, char **argv)
 	data->philos = (t_philo *)malloc((ft_atoi(argv[1]) * sizeof(t_philo)));
 	initialize(data, argv);
 	start_simulation(data);
+	// Join all philosopher threads
+	i = 0;
+	while (i < data->num_of_philos)
+	{
+		pthread_join(data->philos[i].thread, NULL);
+		i++;
+	}
+	// Join the monitor thread
+	pthread_join(data->thread, NULL);
 	printf("INPUTS ARE CORRECT!\n");
-	print_data(data, argv);
+	// print_data(data, argv);
 	return (0);
 }
-
-/////////////////////////////////////
-// TEST
-
-// #include <pthread.h>
-// #include <stdio.h> // printf
-// #include <stdlib.h> //malloc
-// #include <unistd.h>
-
-// typedef struct data_s
-// {
-// 	int				num;
-// 	pthread_mutex_t	mutex;
-// }					data_t;
-
-// void exit_on_error(data_t *data, int exit_code)
-// {
-// 	free(data);
-// 	exit(exit_code);
-// }
-
-// void *routine_1(void *arg)
-// {
-// 	data_t *data;
-// 	int i;
-
-// 	data = (data_t *)arg;
-// 	i = 0;
-// 	while(i<10000000)
-// 	{
-// 		pthread_mutex_lock(&data->mutex);
-// 		(data->num)++;
-// 		pthread_mutex_unlock(&data->mutex);
-// 		i++;
-
-// 	}
-// 	return (NULL);
-// }
-
-// void	example(void)
-// {
-// 	data_t		*data;
-// 	pthread_t	t1;
-// 	pthread_t	t2;
-// 	pthread_t	t3;
-// 	pthread_t	t4;
-
-// 	data = malloc(sizeof(data_t));
-// 	if(data == NULL)
-// 		exit(1);
-// 	data->num = 0;
-// 	pthread_mutex_init(&data->mutex, NULL);
-
-// 	if(pthread_create(&t1,NULL,routine_1,data))
-// 		exit_on_error(data,2);
-// 	if(pthread_create(&t2,NULL,routine_1,data))
-// 		exit_on_error(data,2);
-// 	if(pthread_create(&t3,NULL,routine_1,data))
-// 		exit_on_error(data,2);
-// 	if(pthread_create(&t4,NULL,routine_1,data))
-// 		exit_on_error(data,2);
-
-// 	if(pthread_join(t1,NULL))
-// 		exit_on_error(data,3);
-// 	// if(pthread_join(t2,NULL))
-// 	// 	exit_on_error(data,3);
-// 	// if(pthread_join(t3,NULL))
-// 	// 	exit_on_error(data,3);
-// 	// if(pthread_join(t4,NULL))
-// 	// 	exit_on_error(data,3);
-
-// 	printf("Num: %d\n", data->num);
-// 	pthread_mutex_destroy(&data->mutex);
-// 	free(data);
-
-// }
-
-// int	main(int argc, char **argv)
-// {
-// 	example();
-// 	return (0);
-// }
