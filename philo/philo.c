@@ -156,19 +156,25 @@ void	*philo_routine(void *args)
 {
 	t_data	*data;
 	int		i;
+	int		next;
 
-	t_philo *philo = (t_philo *)args; // Correctly cast args to t_philo
+	t_philo *philo = (t_philo *)args; // Cast args to t_philo
 	data = philo->data;
 	// Access the shared data structure
 	i = philo->id - 1;
 	// Set i based on the philosopher's id
-	int next = (i + 1) % data->num_of_philos; // Calculate the next philosopher
-	// Stagger start for philosophers with odd IDs
+	next = (i + 1) % data->num_of_philos;
+	// Calculate the next philosopher's index
+	// Stagger start for philosophers with odd IDs (applies only at start)
 	if (data->num_of_philos != 1 && (i + 1) % 2 == 1)
-	{
-		print_handler(data, 2, i);    // Thinking message
-		ft_usleep(data->time_to_eat); // Stagger by sleeping
-	}
+		ft_usleep(data->time_to_eat); // Initial staggered sleep for odd IDs
+	// if (data->num_of_philos != 1 && data->philos[i].id % 2 == 1)
+	// {
+	// 	print_handler(data, 2, i);
+	// 	ft_usleep(data->time_to_eat / 2);
+	// }
+	pthread_mutex_lock(&data->mutex_start);
+	pthread_mutex_unlock(&data->mutex_start);
 	// Initialize last time eat
 	pthread_mutex_lock(&data->mutex_last_time);
 	philo->last_time_eat = get_current_time();
@@ -176,8 +182,42 @@ void	*philo_routine(void *args)
 	// Main loop for the philosopher routine
 	while (1)
 	{
-		if (!routine_loop(data, i, next))
-			return (NULL); // Exit if the routine signals to stop
+		// Check if the routine should stop before each loop
+		pthread_mutex_lock(&data->mutex_isfinish);
+		if (data->is_finish)
+		{
+			pthread_mutex_unlock(&data->mutex_isfinish);
+			return (NULL); // Exit if the simulation should stop
+		}
+		pthread_mutex_unlock(&data->mutex_isfinish);
+		// Take forks and eat
+		pthread_mutex_lock(&data->philos[i].mutex_fork);
+		pthread_mutex_lock(&data->philos[next].mutex_fork);
+		print_handler(data, 0, i); // Indicate fork-taking
+		pthread_mutex_lock(&data->mutex_last_time);
+		data->philos[i].last_time_eat = get_current_time();
+		pthread_mutex_unlock(&data->mutex_last_time);
+		ft_usleep(data->time_to_eat); // Simulate eating
+		// Update last time eat and decrement meal count if applicable
+		pthread_mutex_lock(&data->mutex_last_time);
+		philo->last_time_eat = get_current_time();
+		pthread_mutex_unlock(&data->mutex_last_time);
+		pthread_mutex_lock(&data->mutex_meal);
+		if (philo->count_meal > 0)
+		{
+			philo->count_meal--;
+			if (philo->count_meal == 0)
+				data->finished_philos++;
+		}
+		pthread_mutex_unlock(&data->mutex_meal);
+		// Put down forks
+		pthread_mutex_unlock(&data->philos[next].mutex_fork);
+		pthread_mutex_unlock(&data->philos[i].mutex_fork);
+		// Sleep
+		print_handler(data, 1, i);      // Indicate sleeping
+		ft_usleep(data->time_to_sleep); // Simulate sleeping
+		// Think
+		print_handler(data, 2, i); // Indicate thinking
 	}
 	return (NULL);
 }
@@ -206,11 +246,12 @@ void	*monitor_thread(void *args)
 		i = 0;
 		while (i < data->num_of_philos)
 		{
-			printf("\nPhilosopher %d:\n", data->philos[i].id);
-			printf("  Current Time: %ld ms\n", current_time);
-			printf("  Last Time Eat: %ld ms\n", data->philos[i].last_time_eat);
-			printf("  Die checker: %zu ms\n", current_time
-				- data->philos[i].last_time_eat);
+			// printf("\nPhilosopher %d:\n", data->philos[i].id);
+			// printf("  Current Time: %ld ms\n", current_time);
+			// printf("  Last Time Eat: %ld ms\n",
+			// data->philos[i].last_time_eat);
+			// printf("  Die checker: %zu ms\n", current_time
+			// - data->philos[i].last_time_eat);
 			pthread_mutex_lock(&data->mutex_last_time);
 			current_time = get_current_time();
 			if (current_time
@@ -226,7 +267,7 @@ void	*monitor_thread(void *args)
 			pthread_mutex_unlock(&data->mutex_last_time);
 			i++;
 		}
-		ft_usleep(199); // Sleep for a short time to avoid busy-waiting
+		ft_usleep(1); // Sleep for a short time to avoid busy-waiting
 	}
 	return (NULL);
 }
