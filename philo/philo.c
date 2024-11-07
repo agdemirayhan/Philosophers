@@ -105,53 +105,6 @@ void	initialize(t_data *data, char **argv)
 	}
 }
 
-#include <pthread.h>
-#include <stdio.h>
-#include <unistd.h> // For usleep
-
-int	routine_loop(t_data *data, int i, int next)
-{
-	// Check if the simulation should stop
-	pthread_mutex_lock(&data->mutex_isfinish);
-	if (data->is_finish)
-	{
-		pthread_mutex_unlock(&data->mutex_isfinish);
-		return (0);
-	}
-	pthread_mutex_unlock(&data->mutex_isfinish);
-	// Take forks and eat
-	pthread_mutex_lock(&data->philos[i].mutex_fork);
-	pthread_mutex_lock(&data->philos[next].mutex_fork);
-	print_handler(data, 0, i);
-	ft_usleep(data->time_to_eat); // Simulate eating
-	// Decrement the count of meals and check if this philosopher is done
-	pthread_mutex_lock(&data->mutex_meal);
-	if (data->philos[i].count_meal > 0)
-	{
-		data->philos[i].count_meal--;
-		if (data->philos[i].count_meal == 0)
-			data->finished_philos++;
-	}
-	pthread_mutex_unlock(&data->mutex_meal);
-	// Put down forks
-	pthread_mutex_unlock(&data->philos[next].mutex_fork);
-	pthread_mutex_unlock(&data->philos[i].mutex_fork);
-	// Sleep
-	print_handler(data, 1, i);
-	ft_usleep(data->time_to_sleep); // Simulate sleeping
-	// Think
-	print_handler(data, 2, i);
-	// Check if the simulation should stop again
-	pthread_mutex_lock(&data->mutex_isfinish);
-	if (data->is_finish)
-	{
-		pthread_mutex_unlock(&data->mutex_isfinish);
-		return (0);
-	}
-	pthread_mutex_unlock(&data->mutex_isfinish);
-	return (1); // Continue the routine
-}
-
 void	*philo_routine(void *args)
 {
 	t_data	*data;
@@ -166,12 +119,18 @@ void	*philo_routine(void *args)
 	next = (i + 1) % data->num_of_philos;
 	// Calculate the next philosopher's index
 	// Stagger start for philosophers with odd IDs (applies only at start)
+	if (data->num_of_philos == 1)
+		return (NULL);
 	if (data->num_of_philos != 1 && (i + 1) % 2 == 1)
-		ft_usleep(data->time_to_eat); // Initial staggered sleep for odd IDs
-	// if (data->num_of_philos != 1 && data->philos[i].id % 2 == 1)
+	{
+
+		print_handler(data, 2, i);
+	ft_usleep(data->time_to_eat); // Initial staggered thinking for odd IDs
+	}
+	// if (data->num_of_philos != 1 && data->philos[i].id % 2 == 0)
 	// {
-	// 	print_handler(data, 2, i);
-	// 	ft_usleep(data->time_to_eat / 2);
+	// 	print_handler(data, 0, i);
+	// 	ft_usleep(data->time_to_eat);
 	// }
 	pthread_mutex_lock(&data->mutex_start);
 	pthread_mutex_unlock(&data->mutex_start);
@@ -197,10 +156,10 @@ void	*philo_routine(void *args)
 		pthread_mutex_lock(&data->mutex_last_time);
 		data->philos[i].last_time_eat = get_current_time();
 		pthread_mutex_unlock(&data->mutex_last_time);
+		philo->last_time_eat = get_current_time();
 		ft_usleep(data->time_to_eat); // Simulate eating
 		// Update last time eat and decrement meal count if applicable
 		pthread_mutex_lock(&data->mutex_last_time);
-		philo->last_time_eat = get_current_time();
 		pthread_mutex_unlock(&data->mutex_last_time);
 		pthread_mutex_lock(&data->mutex_meal);
 		if (philo->count_meal > 0)
