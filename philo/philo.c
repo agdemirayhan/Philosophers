@@ -10,14 +10,33 @@ size_t	get_current_time(void)
 }
 
 // Example implementation of ft_usleep
-int	ft_usleep(size_t milliseconds)
+void	ft_usleep(size_t milliseconds)
 {
 	size_t	start;
 
 	start = get_current_time();
 	while ((get_current_time() - start) < milliseconds)
 		usleep(50);
-	return (0);
+}
+
+void	cleanup(t_data *data)
+{
+	// Destroy mutexes associated with each philosopher's fork
+	for (int i = 0; i < data->num_of_philos; i++)
+	{
+		pthread_mutex_destroy(&data->philos[i].mutex_fork);
+	}
+	// Destroy shared mutexes in the data structure
+	pthread_mutex_destroy(&data->mutex_print);
+	pthread_mutex_destroy(&data->mutex_start);
+	pthread_mutex_destroy(&data->mutex_time);
+	pthread_mutex_destroy(&data->mutex_last_time);
+	pthread_mutex_destroy(&data->mutex_meal);
+	pthread_mutex_destroy(&data->mutex_index);
+	pthread_mutex_destroy(&data->mutex_thread);
+	pthread_mutex_destroy(&data->mutex_isfinish);
+	// Free allocated memory for philosophers
+	free(data->philos);
 }
 
 // // Example implementation of get_current_time
@@ -123,9 +142,8 @@ void	*philo_routine(void *args)
 		return (NULL);
 	if (data->num_of_philos != 1 && (i + 1) % 2 == 1)
 	{
-
 		print_handler(data, 2, i);
-	ft_usleep(data->time_to_eat); // Initial staggered thinking for odd IDs
+		ft_usleep(data->time_to_eat); // Initial staggered thinking for odd IDs
 	}
 	// if (data->num_of_philos != 1 && data->philos[i].id % 2 == 0)
 	// {
@@ -226,7 +244,7 @@ void	*monitor_thread(void *args)
 			pthread_mutex_unlock(&data->mutex_last_time);
 			i++;
 		}
-		ft_usleep(1); // Sleep for a short time to avoid busy-waiting
+		usleep(50); // Sleep for a short time to avoid busy-waiting
 	}
 	return (NULL);
 }
@@ -294,6 +312,7 @@ int	main(int argc, char **argv)
 	// Join the monitor thread
 	pthread_join(data->thread, NULL);
 	printf("INPUTS ARE CORRECT!\n");
+	cleanup(data);
 	// print_data(data, argv);
 	return (0);
 }
