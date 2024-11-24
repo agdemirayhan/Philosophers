@@ -58,27 +58,32 @@ void	print_handler(t_data *data, int type, int i)
 	size_t	time;
 	int		is_finish;
 
+	pthread_mutex_lock(&data->mutex_print);
 	pthread_mutex_lock(&data->mutex_time);
 	time = get_current_time() - data->start_time;
 	pthread_mutex_unlock(&data->mutex_time);
 	pthread_mutex_lock(&data->mutex_isfinish);
 	is_finish = data->is_finish;
 	pthread_mutex_unlock(&data->mutex_isfinish);
-	if (!is_finish)
+	// Lock before calculating time and printing
+	time = get_current_time() - data->start_time;
+	// Only print if the simulation is not finished
+	if (!data->is_finish)
 	{
-		pthread_mutex_lock(&data->mutex_print);
-		if (type == 0)
-			printf("%zu %d %s\n%zu %d %s\n%zu %d %s\n", time,
-				data->philos[i].id, FORKS, time, data->philos[i].id, FORKS,
-				time, data->philos[i].id, EAT);
-		else if (type == 1)
+		if (type == 0) // Philosopher picks up forks and starts eating
+		{
+			printf("%zu %d %s\n", time, data->philos[i].id, FORKS);
+			printf("%zu %d %s\n", time, data->philos[i].id, FORKS);
+			printf("%zu %d %s\n", time, data->philos[i].id, EAT);
+		}
+		else if (type == 1) // Philosopher is sleeping
 			printf("%zu %d %s\n", time, data->philos[i].id, SLEEP);
-		else if (type == 2)
+		else if (type == 2) // Philosopher is thinking
 			printf("%zu %d %s\n", time, data->philos[i].id, THINK);
-		else if (type == 3)
+		else if (type == 3) // Philosopher died
 			printf("%zu %d %s\n", time, data->philos[i].id, DIED);
-		pthread_mutex_unlock(&data->mutex_print);
 	}
+	pthread_mutex_unlock(&data->mutex_print); // Unlock after printing
 }
 
 // void	*philosopher_thread(void *arg)
@@ -206,7 +211,7 @@ void	*monitor_thread(void *args)
 	size_t	current_time;
 
 	data = (t_data *)args;
-	while (1)
+	while (!data->is_finish)
 	{
 		// Check if all philosophers have finished eating
 		pthread_mutex_lock(&data->mutex_meal);
@@ -231,6 +236,7 @@ void	*monitor_thread(void *args)
 			// - data->philos[i].last_time_eat);
 			pthread_mutex_lock(&data->mutex_last_time);
 			current_time = get_current_time();
+			pthread_mutex_unlock(&data->mutex_last_time);
 			if (current_time
 				- data->philos[i].last_time_eat > (size_t)data->time_to_die)
 			{
@@ -241,10 +247,16 @@ void	*monitor_thread(void *args)
 				pthread_mutex_unlock(&data->mutex_last_time);
 				return (NULL); // Exit the monitor thread
 			}
-			pthread_mutex_unlock(&data->mutex_last_time);
 			i++;
 		}
+		i = 0;
+
 		usleep(50); // Sleep for a short time to avoid busy-waiting
+	}
+	while (i < data->num_of_philos)
+	{
+		pthread_join(data->philos[i].thread, NULL);
+		i++;
 	}
 	return (NULL);
 }
@@ -303,12 +315,6 @@ int	main(int argc, char **argv)
 	initialize(data, argv);
 	start_simulation(data);
 	// Join all philosopher threads
-	i = 0;
-	while (i < data->num_of_philos)
-	{
-		pthread_join(data->philos[i].thread, NULL);
-		i++;
-	}
 	// Join the monitor thread
 	pthread_join(data->thread, NULL);
 	printf("INPUTS ARE CORRECT!\n");
