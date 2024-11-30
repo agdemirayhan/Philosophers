@@ -1,8 +1,8 @@
 NAME = philo
 
-CC = gcc
-CFLAGS = -g
-# CFLAGS = -Wall -Wextra -Werror -fsanitize=address
+CC = cc
+# CFLAGS = -g
+CFLAGS = -Wall -Wextra -Werror
 SRC = philo.c check_input.c
 OBJ = $(SRC:.c=.o)
 
