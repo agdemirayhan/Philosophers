@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   philo.h                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: aagdemir <aagdemir@student.42heilbronn.    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/11/30 11:22:38 by aagdemir          #+#    #+#             */
+/*   Updated: 2024/11/30 11:22:41 by aagdemir         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #ifndef PHILO_H
 # define PHILO_H
 
@@ -16,9 +28,6 @@
 # define EAT "is eating"
 # define DIED "died"
 
-// Forward declaration of t_data
-struct s_data;
-
 typedef struct s_philo
 {
 	pthread_t		thread;
@@ -26,7 +35,7 @@ typedef struct s_philo
 	int				count_meal;
 	size_t			last_time_eat;
 	pthread_mutex_t	mutex_fork;
-	struct s_data *data; // Use the forward deasdasdclaration for the pointer
+	struct s_data	*data;
 }					t_philo;
 
 typedef struct s_data
@@ -37,7 +46,7 @@ typedef struct s_data
 	int				time_to_sleep;
 	int				is_finish;
 	int				index;
-	int 			fifth_arg;
+	int				fifth_arg;
 	int				num_of_philos;
 	int				finished_philos;
 	int				count_meals;
@@ -55,11 +64,12 @@ typedef struct s_data
 
 int					check_input(int argc, char **argv);
 long				ft_atoi(const char *str);
-// long				current_time_ms(void);
-// void				*philosopher_thread(void *arg);
-// int					initialize(t_params *params, int argc, char **argv);
-// void				start_simulation(t_params *params);
-// void				*monitor_thread(void *arg);
-// void				cleanup(t_params *params);
+void				*monitor_thread(void *args);
+size_t				get_current_time(void);
+void				print_handler(t_data *data, int type, int i);
+void				*philo_routine(void *args);
+void				ft_usleep(size_t milliseconds);
+void				cleanup(t_data *data);
+void				initialize(t_data *data, char **argv);
 
 #endif
