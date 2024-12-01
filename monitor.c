@@ -78,10 +78,6 @@ void	*monitor_thread(void *args)
 		if (fiftharg_monitor(data) == -1)
 			return (NULL);
 	}
-	while (i < data->num_of_philos)
-	{
-		pthread_join(data->philos[i].thread, NULL);
-		i++;
-	}
+
 	return (NULL);
 }

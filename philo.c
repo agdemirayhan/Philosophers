@@ -15,9 +15,9 @@
 void	start_simulation(t_data *data)
 {
 	int	i;
+	pthread_t monitor;
 
 	i = 0;
-	pthread_mutex_lock(&data->mutex_start);
 	while (i < data->num_of_philos)
 	{
 		data->philos[i].data = data;
@@ -26,8 +26,14 @@ void	start_simulation(t_data *data)
 		i++;
 	}
 	data->start_time = get_current_time();
-	pthread_mutex_unlock(&data->mutex_start);
-	pthread_create(&data->thread, NULL, monitor_thread, (void *)data);
+	pthread_create(&monitor, NULL, monitor_thread, (void *)data);
+	i = 0;
+	while (i < data->num_of_philos)
+	{
+		pthread_join(data->philos[i].thread, NULL);
+		i++;
+	}
+	pthread_join(monitor, NULL);
 }
 
 int	main(int argc, char **argv)
@@ -46,6 +52,6 @@ int	main(int argc, char **argv)
 		data->fifth_arg = 1;
 	start_simulation(data);
 	pthread_join(data->thread, NULL);
-	cleanup(data);
+	// cleanup(data);
 	return (0);
 }

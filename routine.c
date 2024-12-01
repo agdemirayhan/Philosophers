@@ -14,23 +14,27 @@
 
 void	routine_loop(t_data *data, int i, int next, t_philo *philo)
 {
-	pthread_mutex_lock(&data->philos[i].mutex_fork);
-	pthread_mutex_lock(&data->philos[next].mutex_fork);
+	int			left_fork;
+	int			right_fork;
+left_fork = philo->id - 1;
+	right_fork = philo->id % data->num_of_philos;
+	pthread_mutex_lock(data->forks[left_fork].lock_fork);
+	pthread_mutex_lock(data->forks[right_fork].lock_fork);
 	print_handler(data, 0, i);
-	pthread_mutex_lock(&data->mutex_last_time);
-	data->philos[i].last_time_eat = get_current_time();
-	pthread_mutex_unlock(&data->mutex_last_time);
+	pthread_mutex_lock(&philo->philo);
+		philo->last_time_eat = get_current_time();
+		print_handler(data, 4,i);
+		philo->count_meal++;
+		pthread_mutex_unlock(&philo->philo);
 	ft_usleep(data->time_to_eat);
 	pthread_mutex_lock(&data->mutex_meal);
-	if (philo->count_meal > 0)
+	if (philo->count_meal > data->meal_limit)
 	{
-		philo->count_meal--;
-		if (philo->count_meal == 0)
 			data->finished_philos++;
 	}
 	pthread_mutex_unlock(&data->mutex_meal);
-	pthread_mutex_unlock(&data->philos[next].mutex_fork);
-	pthread_mutex_unlock(&data->philos[i].mutex_fork);
+	pthread_mutex_unlock(data->forks[left_fork].lock_fork);
+	pthread_mutex_unlock(data->forks[right_fork].lock_fork);
 	print_handler(data, 1, i);
 	ft_usleep(data->time_to_sleep);
 	print_handler(data, 2, i);
@@ -53,23 +57,32 @@ void	*philo_routine(void *args)
 	int		i;
 	int		next;
 	t_philo	*philo;
+	int			left_fork;
+	int			right_fork;
+
 
 	philo = (t_philo *)args;
 	data = philo->data;
+	left_fork = philo->id - 1;
+	right_fork = philo->id % data->num_of_philos;
 	i = philo->id - 1;
-	pthread_mutex_lock(&data->mutex_index);
-	next = (i + 1) % data->num_of_philos;
-	pthread_mutex_unlock(&data->mutex_index);
+	pthread_mutex_lock(&philo->philo);
+	philo->last_time_eat = get_current_time();
+	pthread_mutex_unlock(&philo->philo);
+	print_handler(data,2,i);
 	if (data->num_of_philos == 1)
 		return (NULL);
-	pthread_mutex_lock(&data->mutex_start);
-	pthread_mutex_unlock(&data->mutex_start);
 	if (data->num_of_philos != 1 && (i + 1) % 2 == 1)
 		oddnumber_printer(data, i);
-	pthread_mutex_lock(&data->mutex_last_time);
-	philo->last_time_eat = get_current_time();
-	pthread_mutex_unlock(&data->mutex_last_time);
-	while (1)
+	while (!data->is_finish)
+	{
+		if(left_fork < right_fork)
+		{
+			pthread_mutex_lock(data->forks[left_fork].lock_fork);
+			print_handler(data,0,philo->id);
+			pthread_mutex_unlock(data->forks[left_fork].lock_fork);
+		}
 		routine_loop(data, i, next, philo);
+	}
 	return (NULL);
 }

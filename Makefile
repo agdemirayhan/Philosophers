@@ -1,7 +1,7 @@
 NAME = philo
 
 CC = cc
-# CFLAGS = -g
+CFLAGS = -g -fsanitize=address
 # CFLAGS = -Wall -Wextra -Werror
 SRC = philo.c check_input.c monitor.c routine.c helpers.c helpers2.c
 OBJ = $(SRC:.c=.o)

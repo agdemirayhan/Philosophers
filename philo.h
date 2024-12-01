@@ -34,13 +34,20 @@ typedef struct s_philo
 	int				id;
 	int				count_meal;
 	size_t			last_time_eat;
-	pthread_mutex_t	mutex_fork;
+	pthread_mutex_t	philo;
 	struct s_data	*data;
 }					t_philo;
+
+typedef struct	s_forks
+{
+	int				taken;
+	pthread_mutex_t	*lock_fork;
+}					t_forks;
 
 typedef struct s_data
 {
 	t_philo			*philos;
+	t_forks			*forks;
 	int				time_to_die;
 	int				time_to_eat;
 	int				time_to_sleep;
@@ -49,7 +56,7 @@ typedef struct s_data
 	int				fifth_arg;
 	int				num_of_philos;
 	int				finished_philos;
-	int				count_meals;
+	int				meal_limit;
 	size_t			start_time;
 	pthread_mutex_t	mutex_print;
 	pthread_mutex_t	mutex_start;

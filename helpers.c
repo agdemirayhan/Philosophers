@@ -30,23 +30,23 @@ void	ft_usleep(size_t milliseconds)
 		usleep(50);
 }
 
-void	cleanup(t_data *data)
-{
-	int	i;
+// void	cleanup(t_data *data)
+// {
+// 	int	i;
 
-	i = 0;
-	while (i < data->num_of_philos)
-	{
-		pthread_mutex_destroy(&data->philos[i].mutex_fork);
-		i++;
-	}
-	pthread_mutex_destroy(&data->mutex_print);
-	pthread_mutex_destroy(&data->mutex_start);
-	pthread_mutex_destroy(&data->mutex_time);
-	pthread_mutex_destroy(&data->mutex_last_time);
-	pthread_mutex_destroy(&data->mutex_meal);
-	pthread_mutex_destroy(&data->mutex_index);
-	pthread_mutex_destroy(&data->mutex_thread);
-	pthread_mutex_destroy(&data->mutex_isfinish);
-	free(data->philos);
-}
+// 	i = 0;
+// 	while (i < data->num_of_philos)
+// 	{
+// 		pthread_mutex_destroy(&data->forks[i].mutex_fork);
+// 		i++;
+// 	}
+// 	pthread_mutex_destroy(&data->mutex_print);
+// 	pthread_mutex_destroy(&data->mutex_start);
+// 	pthread_mutex_destroy(&data->mutex_time);
+// 	pthread_mutex_destroy(&data->mutex_last_time);
+// 	pthread_mutex_destroy(&data->mutex_meal);
+// 	pthread_mutex_destroy(&data->mutex_index);
+// 	pthread_mutex_destroy(&data->mutex_thread);
+// 	pthread_mutex_destroy(&data->mutex_isfinish);
+// 	free(data->philos);
+// }
