@@ -47,16 +47,19 @@ int	fiftharg_monitor(t_data *data)
 	while (i < data->num_of_philos && data->fifth_arg)
 	{
 		pthread_mutex_lock(&data->mutex_meal);
-		count_meal = data->philos[i].count_meal;
+		count_meal = 0;
 		pthread_mutex_unlock(&data->mutex_meal);
-		if (count_meal && count_meal != 0)
-			break ;
-		else if (data->fifth_arg)
+		// printf("count_meal:%d\n",count_meal);
+		// printf("finished_philos:%d\n",data->finished_philos);
+		pthread_mutex_lock(&data->mutex_isfinish);
+		if (data->fifth_arg && data->finished_philos == data->num_of_philos)
 		{
-			pthread_mutex_lock(&data->mutex_isfinish);
+			// printf("TEST");
+			
 			data->is_finish = 1;
+			
+			print_handler(data, 5, i);
 			pthread_mutex_unlock(&data->mutex_isfinish);
-			print_handler(data, 4, i);
 			return (-1);
 		}
 		i++;

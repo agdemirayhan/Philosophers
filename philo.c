@@ -51,7 +51,8 @@ int	main(int argc, char **argv)
 	if (argv[5])
 		data->fifth_arg = 1;
 	start_simulation(data);
-	pthread_join(data->thread, NULL);
-	// cleanup(data);
+	// pthread_mutex_destroy(&data->mutex_meal);
+	// pthread_mutex_destroy(data->mutex_isfinish);
+	cleanup(data);  
 	return (0);
 }

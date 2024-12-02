@@ -30,9 +30,9 @@ void	print_helper(t_data *data, int type, int i, size_t time)
 		else if(type==4)
 			printf("%zu %d %s\n", time, data->philos[i].id, EAT);
 	}
-	else if (data->is_finish && type == 4)
+	else if (data->is_finish && type == 5)
 	{
-		printf("Philosophers ate %d times", data->meal_limit);
+		printf("Philosophers ate %d times\n", data->meal_limit);
 		return ;
 	}
 }
@@ -84,6 +84,7 @@ void initialize(t_data *data, char **argv)
     data->time_to_sleep = ft_atoi(argv[4]);
     data->index = 0;
     data->is_finish = 0;
+    data->finished_philos = 0;
     if (argv[5])
         data->meal_limit = ft_atoi(argv[5]);
 
