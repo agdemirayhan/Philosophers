@@ -1,6 +1,6 @@
 NAME = philo
 
-CC = gcc
+CC = cc
 CFLAGS = -g
 # CFLAGS = -Wall -Wextra -Werror -fsanitize=address
 SRC = philo.c check_input.c
