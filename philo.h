@@ -25,9 +25,15 @@ typedef struct s_philo
 	int				id;
 	int				count_meal;
 	size_t			last_time_eat;
-	pthread_mutex_t	mutex_fork;
+	pthread_mutex_t	lock;
 	struct s_data *data; // Use the forward deasdasdclaration for the pointer
 }					t_philo;
+
+typedef struct	s_forks
+{
+	int				taken;
+	pthread_mutex_t	*lock_fork;
+}					t_forks;
 
 typedef struct s_data
 {
@@ -42,15 +48,11 @@ typedef struct s_data
 	int				finished_philos;
 	int				count_meals;
 	size_t			start_time;
-	pthread_mutex_t	mutex_print;
-	pthread_mutex_t	mutex_start;
-	pthread_mutex_t	mutex_time;
-	pthread_mutex_t	mutex_last_time;
-	pthread_mutex_t	mutex_meal;
-	pthread_mutex_t	mutex_index;
-	pthread_mutex_t	mutex_thread;
-	pthread_mutex_t	mutex_isfinish;
-	pthread_t		thread;
+	pthread_mutex_t	print;
+	pthread_mutex_t	meal;
+	pthread_mutex_t	*finish;
+	t_philo			*philo;
+	t_forks			*forks;
 }					t_data;
 
 int					check_input(int argc, char **argv);
