@@ -98,8 +98,10 @@ void	initialize(t_data *data, char **argv)
 	while (++i < data->num_of_philos)
 	{
 		data->philos[i].id = i + 1;
-		if (argv[5])
-			data->philos[i].count_meal = ft_atoi(argv[5]);
+		data->philo[i].count_meal = 0;
+		data->philo[i].last_time_eat = 0;
+		data->philo[i].data = data;
+		pthread_mutex_init(&data->philo[i].lock, NULL);
 		data->philos[i].last_time_eat = get_current_time();
 		
 	}
@@ -230,6 +232,7 @@ void	start_simulation(t_data *data)
 	
 	// Create the monitor thread
 	pthread_create(&monitor, NULL, monitor_thread, data);
+	pthread_join(monitor, NULL);
 }
 
 void	print_data(t_data *data, char **argv)
@@ -263,10 +266,39 @@ int	main(int argc, char **argv)
 		return (WRONG_INPUT);
 	}
 	data = (t_data *)malloc(1 * sizeof(t_data));
+	if(!data)
+		return NULL;
+	pthread_mutex_init(&data->meal, NULL);
+	data->finish = 0;
 	data->philos = (t_philo *)malloc((ft_atoi(argv[1]) * sizeof(t_philo)));
+	if(!data->philos)
+	{
+		free(data->philo);
+		free(data);
+		return NULL;		 
+	}
+	data->forks = (t_philo *)malloc(ft_atoi(argv[1]) * sizeof(t_forks));
+	if(!data->forks)
+	{
+		free(data->forks);
+		free(data);
+		return NULL;		 
+	}
+	pthread_mutex_init(&data->print, NULL);
+	data->finish = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(data->finish, NULL);
 	initialize(data, argv);
 	if (argv[5])
 		data->fifth_arg = 1;
+	data->start_time = get_current_time();
+	i = 0;
+	while(i < data->num_of_philos)
+	{
+		data->forks[i].occ = 0;
+		data->forks[i].lock = malloc(sizeof(pthread_mutex_t));
+		pthread_mutex_init(data->forks[i].lock, NULL);
+		i++;
+	}
 	start_simulation(data);
 	// Join all philosopher threads
 	// Join the monitor thread

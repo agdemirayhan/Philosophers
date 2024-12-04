@@ -31,8 +31,8 @@ typedef struct s_philo
 
 typedef struct	s_forks
 {
-	int				taken;
-	pthread_mutex_t	*lock_fork;
+	int				occ;
+	pthread_mutex_t	*lock;
 }					t_forks;
 
 typedef struct s_data
