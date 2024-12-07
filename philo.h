@@ -24,6 +24,8 @@ typedef struct s_philo
 	pthread_t		thread;
 	int				id;
 	int				count_meal;
+	int				left_fork;
+	int				right_fork;
 	size_t			last_time_eat;
 	pthread_mutex_t	lock;
 	struct s_data *data; // Use the forward deasdasdclaration for the pointer
@@ -51,7 +53,7 @@ typedef struct s_data
 	pthread_mutex_t	print;
 	pthread_mutex_t	meal;
 	pthread_mutex_t	*finish;
-	t_philo			*philo;
+	pthread_mutex_t	full_mutex;
 	t_forks			*forks;
 }					t_data;
 
