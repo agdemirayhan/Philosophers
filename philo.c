@@ -96,20 +96,6 @@ void print_handler(t_data *data, int type, int i)
 }
 
 
-// void	*philosopher_thread(void *arg)
-// {
-// }
-
-// void	print_message(char *str, t_philo *philo, int id)
-// {
-// }
-
-// // Monitor thread routine
-
-// void	*monitor_thread(void *pointer)
-// {
-// }
-
 void	initialize(t_data *data, char **argv)
 {
 	int	i;
