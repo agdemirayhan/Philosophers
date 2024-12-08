@@ -37,6 +37,7 @@ void	cleanup(t_data *data)
 	pthread_mutex_destroy(&data->mutex_isfinish);
 	// Free allocated memory for philosophers
 	free(data->philos);
+	free(data);
 }
 
 // // Example implementation of get_current_time
