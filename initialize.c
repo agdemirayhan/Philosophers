@@ -6,17 +6,14 @@
 /*   By: aagdemir <aagdemir@student.42heilbronn.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/08 18:35:56 by aagdemir          #+#    #+#             */
-/*   Updated: 2024/12/08 19:04:05 by aagdemir         ###   ########.fr       */
+/*   Updated: 2024/12/08 19:08:21 by aagdemir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
 
-void	initialize(t_data *data, char **argv)
+void	init_data(t_data *data, char **argv)
 {
-	int i;
-
-	i = -1;
 	data->num_of_philos = ft_atoi(argv[1]);
 	data->time_to_die = ft_atoi(argv[2]);
 	data->time_to_eat = ft_atoi(argv[3]);
@@ -33,6 +30,13 @@ void	initialize(t_data *data, char **argv)
 	pthread_mutex_init(&(data->mutex_index), NULL);
 	pthread_mutex_init(&(data->mutex_thread), NULL);
 	pthread_mutex_init(&(data->mutex_isfinish), NULL);
+}
+
+void	init_philos(t_data *data, char **argv)
+{
+	int	i;
+
+	i = -1;
 	while (++i < data->num_of_philos)
 	{
 		data->philos[i].id = i + 1;
@@ -41,4 +45,10 @@ void	initialize(t_data *data, char **argv)
 		data->philos[i].last_time_eat = get_current_time();
 		pthread_mutex_init(&data->philos[i].mutex_fork, NULL);
 	}
+}
+
+void	initialize(t_data *data, char **argv)
+{
+	init_data(data, argv);
+	init_philos(data, argv);
 }
