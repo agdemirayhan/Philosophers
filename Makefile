@@ -1,9 +1,8 @@
 NAME = philo
 
-CC = gcc 
-# CFLAGS = -g -fsanitize=address
-# CFLAGS = -Wall -Wextra -Werror -fsanitize=address
-SRC = philo.c check_input.c
+CC = cc 
+CFLAGS = -Wall -Wextra -Werror 
+SRC = philo.c check_input.c utils.c print.c initialize.c monitor.c
 OBJ = $(SRC:.c=.o)
 
 all: $(NAME)

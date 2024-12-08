@@ -37,7 +37,7 @@ typedef struct s_data
 	int				time_to_sleep;
 	int				is_finish;
 	int				index;
-	int 			fifth_arg;
+	int				fifth_arg;
 	int				num_of_philos;
 	int				finished_philos;
 	int				count_meals;
@@ -55,11 +55,12 @@ typedef struct s_data
 
 int					check_input(int argc, char **argv);
 long				ft_atoi(const char *str);
-// long				current_time_ms(void);
-// void				*philosopher_thread(void *arg);
-// int					initialize(t_params *params, int argc, char **argv);
-// void				start_simulation(t_params *params);
-// void				*monitor_thread(void *arg);
-// void				cleanup(t_params *params);
+size_t				get_current_time(void);
+size_t				get_current_time(void);
+void				cleanup(t_data *data);
+void				ft_usleep(size_t milliseconds);
+void				print_handler(t_data *data, int type, int i);
+void				initialize(t_data *data, char **argv);
+void	*monitor_thread(void *args);
 
 #endif
