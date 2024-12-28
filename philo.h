@@ -6,7 +6,7 @@
 /*   By: aagdemir <aagdemir@student.42heilbronn.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/08 19:24:55 by aagdemir          #+#    #+#             */
-/*   Updated: 2024/12/08 19:25:54 by aagdemir         ###   ########.fr       */
+/*   Updated: 2024/12/28 08:57:49 by aagdemir         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,6 @@
 # define EAT "is eating"
 # define DIED "died"
 
-// Forward declaration of t_data
 struct	s_data;
 
 typedef struct s_philo
@@ -38,7 +37,7 @@ typedef struct s_philo
 	int				count_meal;
 	size_t			last_time_eat;
 	pthread_mutex_t	mutex_fork;
-	struct s_data	*data; // Use the forward deasdasdclaration for the pointer
+	struct s_data	*data;
 }					t_philo;
 
 typedef struct s_data
@@ -75,7 +74,6 @@ void				print_handler(t_data *data, int type, int i);
 void				initialize(t_data *data, char **argv);
 void				*monitor_thread(void *args);
 void				*philo_routine(void *args);
-// routine_helpers
 void				philo_sleep_and_think(t_data *data, int i);
 void				philo_drop_forks(t_data *data, int i, int next);
 void				philo_eat(t_data *data, t_philo *philo);
